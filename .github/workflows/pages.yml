@@ -3,7 +3,7 @@ name: Build & Deploy Loopover TAS
 on:
   push:
     branches:
-      - master
+      - main
 
 jobs:
   build:
