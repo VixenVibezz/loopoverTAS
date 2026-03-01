@@ -21,11 +21,19 @@ interface Pointer {
 export type LetterSystem = "numbers" | "letters" | "letters-xy" | "hybrid";
 
 export class Game {
+  paused: boolean = false;
+  timeScale: number = 1;
+  lastTime: number = 0;
+  private _simTime: number = 0;
   board!: Board
   width!: number
   height!: number
   tileSize!: number
 
+  private clampTimeScale() {
+    this.timeScale = Math.max(0.01, Math.min(this.timeScale, 20));
+  }
+  
   private ctx: CanvasRenderingContext2D
 
   darkText = false
@@ -142,7 +150,7 @@ export class Game {
 
     this.transitions.set(move.index, {
       start: -move.n, value: -move.n,
-      startTime: performance.now(), time: 0,
+      startTime: this._simTime || 0, time: 0,
       duration: this.transitionTime
     })
   }
@@ -234,8 +242,21 @@ export class Game {
     }
   }
 
+  
   private frame = () => {
-    const time = performance.now()
+    const realTime = performance.now()
+
+    if (this.lastTime === 0) this.lastTime = realTime
+
+    let delta = realTime - this.lastTime
+    this.lastTime = realTime
+
+    if (this.paused) delta = 0
+
+    delta *= this.timeScale
+
+    this._simTime += delta
+    const time = this._simTime
 
     if (this.transitions.size != 0) this.repaint = true
 
@@ -343,11 +364,44 @@ export class Game {
     }
 
     switch (event.key) {
+      case "q": this.timeScale = 1; break;
+      case "w": this.timeScale = 0.5; break;
+      case "e": this.timeScale = 0.02; break;
+
+      case "a": this.timeScale = 0.2; break;
+      case "s": this.timeScale = 0.1; break;
+      case "d": this.timeScale = 0.05; break;
+
+      case "x": this.timeScale *= 2; break;
+      case "z": this.timeScale *= 5; break;
+
+      case "c": this.timeScale /= 2; break;
+      case "v": this.timeScale /= 5; break;
+
+      case "Tab":
+        this.paused = !this.paused;
+        event.preventDefault();
+        break;
+
+      case ",":
+        if (this.paused) {
+          this._simTime -= 16.6667;
+          this.repaint = true;
+        }
+        return;
+
+      case ".":
+        if (this.paused) {
+          this._simTime += 16.6667;
+          this.repaint = true;
+        }
+        return;
+        
       case " ": this.spaceDown = true; break
-      case "ArrowLeft": case "a": case "h": move(Axis.Row, -1); break
-      case "ArrowRight": case "d": case "l": move(Axis.Row, 1); break
-      case "ArrowUp": case "w": case "k": move(Axis.Col, -1); break
-      case "ArrowDown": case "s": case "j": move(Axis.Col, 1); break
+      case "ArrowLeft": case "h": move(Axis.Row, -1); break
+      case "ArrowRight": case "l": move(Axis.Row, 1); break
+      case "ArrowUp": case "k": move(Axis.Col, -1); break
+      case "ArrowDown": case "j": move(Axis.Col, 1); break
       default: return true
     }
 
